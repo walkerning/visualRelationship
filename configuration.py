@@ -3,7 +3,7 @@
 class ModelConfig(object):
     def __init__(self):
         ## model configs
-        self.num_predicates = 700
+        self.num_predicates = 70
         
         self.image_feature_name = "bbox"
         
@@ -30,3 +30,26 @@ class ModelConfig(object):
         self.optimizer = "Adam"
 
         self.batch_size = 32
+
+class LanguageModelConfig(object):
+    def __init__(self):
+        self.num_predicates = 70
+        self.num_objects = 100
+        self.dim_embedding = 300
+
+        self.embedding_file = "./model/embedding.npz"
+
+        self.initializer_scale = 0.01
+
+        #self.num_K_samples = 500000
+        # K loss
+        self.num_K_samples = 10000
+        self.coeff_K = 0.002
+
+        # L loss
+        self.num_L_samples = 5000
+        self.coeff_L = 0.05
+        # bigger temperature -> will choose less-frequent occured relationships as postive samples relatively frequently
+        self.L_sample_temperature = 10.
+        self.positive_relations_file = "./model/positive_relations.txt"
+        self.min_pos_neg_diff = 5

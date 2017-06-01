@@ -50,6 +50,9 @@ class VisualModule(object):
                                            size=[self.config.image_height, self.config.image_width],
                                            method=tf.image.ResizeMethod.BILINEAR)
             self.image, self.labels = tf.train.batch_join([(image, proto_value[self.config.predicate_feature_name])], batch_size=self.config.batch_size)
+            #tf.summary.histogram("batch_labels", self.labels)
+        else:
+            pass
 
     def build_model(self):
         model_fn = getattr(vgg, self.config.vgg_type)
