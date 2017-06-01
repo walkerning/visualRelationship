@@ -46,6 +46,8 @@ def main():
     parser.add_argument("--bbox_height", help = "bbox height", default = 224)
     parser.add_argument("--bbox_width", help = "bbox width", default = 224)
 
+    parser.add_argument("--process_bbox", help = "store union of two bboxs", default = "true")
+    parser.add_argument("--tfrecord_num", help = "store number of images per tfrecord", default = 100)
     args = parser.parse_args()
     
     print("Reading from {}".format(os.path.join(args.data_dir, args.train_fname)))
@@ -61,39 +63,83 @@ def main():
  
     cnt = 0
     tmp = 0
-    for ii in train:
-        
-        for jj in range(len(train[ii])):
-            # bbox = [Ymin, Ymax, Xmin, Xmax]
-            bbox1 = train[ii][jj]['object']['bbox']
-            bbox2 = train[ii][jj]['subject']['bbox']
-            bbox1 = transform_bbox(bbox1)
-            bbox2 = transform_bbox(bbox2)
-            predicate = train[ii][jj]['predicate']
+    if args.process_bbox == "true":
+        for ii in train:
+            
+            for jj in range(len(train[ii])):
+                # bbox = [Ymin, Ymax, Xmin, Xmax]
+                bbox1 = train[ii][jj]['object']['bbox']
+                bbox2 = train[ii][jj]['subject']['bbox']
+                bbox1 = transform_bbox(bbox1)
+                bbox2 = transform_bbox(bbox2)
+                predicate = train[ii][jj]['predicate']
+                fname = os.path.join(args.dataset_dir, ii)
+                if not os.path.isfile(fname):
+                    print("file {} does not exist".format(fname))
+                    continue
+                img = Image.open(fname)
+                #img = img.load()
+                bbox = _get_box(bbox1, bbox2)
+
+                b = np.array(img.crop(bbox))
+                b = np.resize(b, [args.bbox_height, args.bbox_width, 3])
+
+                example = tf.train.Example(features = tf.train.Features(feature = { \
+                        'bbox': _bytes_feature(b.tostring()),\
+                        'predicate' : _int64_feature(predicate)}))
+
+                tfrecord_writer.write(example.SerializeToString())
+                tmp += 1
+                if tmp % args.tfrecord_num == 0:
+                    tfrecord_writer.close()
+                    idx += 1
+                    record_fname = _get_output_filename(args.tfrecord_dir, args.tfrecord_fname, idx)
+                    print("Saving to {}".format(record_fname))
+                    tfrecord_writer = tf.python_io.TFRecordWriter(record_fname)
+            cnt += 1
+            print("finish {}".format(cnt / float(len(train))))
+
+    else :
+        for ii in train:
             fname = os.path.join(args.dataset_dir, ii)
             if not os.path.isfile(fname):
                 print("file {} does not exist".format(fname))
                 continue
             img = Image.open(fname)
-            #img = img.load()
-            bbox = _get_box(bbox1, bbox2)
+            # size(height, width)
+            size = img.size
+            height = size[0]
+            width = size[1]
+            img = np.array(img)
+            bbox1 = []
+            bbox2 = []
+            predicate = []
+            for jj in range(len(train[ii])):
+                bbox1.extend(train[ii][jj]['object']['bbox'])
+                bbox2.extend(train[ii][jj]['subject']['bbox'])
+                predicate.append(train[ii][jj]['predicate'])
 
-            b = np.array(img.crop(bbox))
-            b = np.resize(b, [args.bbox_height, args.bbox_width, 3])
-
-            example = tf.train.Example(features = tf.train.Features(feature = { \
-                    'bbox': _bytes_feature(b.tostring()),\
-                    'predicate' : _int64_feature(predicate)}))
+            bbox1 = np.array(bbox1)
+            bbox2 = np.array(bbox2)
+            predicate = np.array(predicate)
+            example = tf.train.Example(features = tf.train.Features(feature = {\
+                'bbox1': _bytes_feature(bbox1.tostring()),\
+                'bbox2': _bytes_feature(bbox2.tostring()),\
+                'image': _bytes_feature(img.tostring()),\
+                'height': _int64_feature(height),\
+                'width': _int64_feature(width),\
+                'predicate': _bytes_feature(predicate.tostring())\
+                }))
             tfrecord_writer.write(example.SerializeToString())
-            tmp += 1
-            if tmp % 100 == 0:
+            cnt += 1
+            print("finish {}".format(cnt / float(len(train))))
+            if cnt % args.tfrecord_num == 0:
                 tfrecord_writer.close()
                 idx += 1
                 record_fname = _get_output_filename(args.tfrecord_dir, args.tfrecord_fname, idx)
                 print("Saving to {}".format(record_fname))
                 tfrecord_writer = tf.python_io.TFRecordWriter(record_fname)
-        cnt += 1
-        print("finish {}".format(cnt / float(len(train))))
+
     tfrecord_writer.close()
 
         
