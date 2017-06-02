@@ -1,6 +1,7 @@
 from __future__ import print_function
 import os
 import numpy as np
+import PIL
 from PIL import Image
 import tensorflow as tf
 import json
@@ -81,8 +82,7 @@ def main():
                 #img = img.load()
                 bbox = _get_box(bbox1, bbox2)
 
-                b = np.array(img.crop(bbox))
-                b = np.resize(b, [args.bbox_height, args.bbox_width, 3])
+                b = np.array(img.crop(bbox).resize([args.bbox_height, args.bbox_width], PIL.Image.BILINEAR))
 
                 example = tf.train.Example(features = tf.train.Features(feature = { \
                         'bbox': _bytes_feature(b.tostring()),\

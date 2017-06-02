@@ -24,6 +24,14 @@ class VisualModule(object):
     def image_summary(self, name, image):
         tf.summary.image(name, tf.expand_dims(image, 0))
 
+    def process_image(self, im_str):
+        image = tf.reshape(tf.decode_raw(im_str, out_type=tf.uint8), (self.config.image_height, self.config.image_width, 3))
+        image = tf.image.convert_image_dtype(image, dtype=tf.float32)
+        image = tf.image.resize_images(image, 
+                                       size=[self.config.image_height, self.config.image_width],
+                                       method=tf.image.ResizeMethod.BILINEAR)
+        return image
+
     def build_inputs(self):
         if self.mode == "train":
             data_files = []
@@ -43,16 +51,12 @@ class VisualModule(object):
                                            })
             image = proto_value[self.config.image_feature_name]
             #image = tf.image.decode_jpeg(image, channels=3)
-            image = tf.reshape(tf.decode_raw(image, out_type=tf.uint8), (self.config.image_height, self.config.image_width, 3))
-            image = tf.image.convert_image_dtype(image, dtype=tf.float32)
-            self.image_summary("original_image", image)
-            image = tf.image.resize_images(image, 
-                                           size=[self.config.image_height, self.config.image_width],
-                                           method=tf.image.ResizeMethod.BILINEAR)
+            image = self.process_image(image)
             self.image, self.labels = tf.train.batch_join([(image, proto_value[self.config.predicate_feature_name])], batch_size=self.config.batch_size)
             #tf.summary.histogram("batch_labels", self.labels)
         else:
-            pass
+            self.image_feed = tf.placeholder(dtype=tf.string, shape=[], name="image_feed")
+            self.image = tf.expand_dims(self.process_image(self.image_feed), 0)
 
     def build_model(self):
         model_fn = getattr(vgg, self.config.vgg_type)
@@ -63,7 +67,8 @@ class VisualModule(object):
                              scope=self.config.vgg_type)
         self.vgg_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.config.vgg_type)
         if self.mode == "inference":
-            pred = tf.nn.softmax(logits, name="softmax")
+            #self.prediction = tf.nn.softmax(logits, name="softmax")
+            self.prediction = logits
         else:
             batch_correct = tf.equal(tf.argmax(logits, 1), self.labels)
             batch_accuracy = tf.reduce_mean(tf.cast(batch_correct, tf.float32))
