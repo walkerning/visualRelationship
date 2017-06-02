@@ -18,6 +18,8 @@ import tensorflow as tf
 from visual_relation_module import VisualModule
 from configuration import ModelConfig
 
+NEG_MARGIN = 0.7
+
 FLAGS = tf.app.flags.FLAGS
 
 tf.flags.DEFINE_string("checkpoint_file", "",
@@ -33,7 +35,7 @@ tf.flags.DEFINE_boolean("cal_recall", True,
                         "Whether or not to calucate recall")
 tf.flags.DEFINE_boolean("verbose", False,
                         "Whether or not to print more verbose information")
-tf.flags.DEFINE_string("save", "./visual_scores.pkl",
+tf.flags.DEFINE_string("save", "./visual_scores.txt",
                        "The pkl file name to save the pos/neg visual scores.")
 
 def _get_box(bbox1, bbox2):
@@ -55,17 +57,24 @@ def main(_):
     model = VisualModule(model_config, mode="inference")
     model.build()
     saver = tf.train.Saver()
-    samples_dct = {}
+    #samples_dct = {}
     recalls_50_dct = {}
     recalls_100_dct = {}
+
+    # FIXME: 是不是其实可以cross-image, 直接把所有positive拼在一起, 所有negative拼在一起就行了
+    print("Saving pos/neg visual scores to {}...".format(FLAGS.save))
+    samples_wf = open(FLAGS.save, "w")
+    ind_fname_wf = open(FLAGS.save + ".ind_fnamemap.txt", "w")
+
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         saver.restore(sess, FLAGS.checkpoint_file)
 
-        for img_fname, ann in annotations.iteritems():
+        for ind, (img_fname, ann) in enumerate(annotations.iteritems()):
             if len(ann) == 0:
                 continue
-            samples_dct[img_fname] = {"positive": [], "negative": []}
+            #samples_dct[img_fname] = {"positive": [], "negative": []}
+            samples_dct = {"positive": [], "negative": []}
 
             img = Image.open(os.path.join(FLAGS.dataset_path, img_fname))
             Object = namedtuple("Object", ["bbox", "category"])
@@ -77,7 +86,7 @@ def main(_):
                 sub = _add_to_dct(Object(tuple(rel["subject"]["bbox"]), rel["subject"]["category"]), objects)
                 rel_set.add((obj, sub))
                 rel_pred_set.add((rel["predicate"], obj, sub))
-            print("Handle pic {}: #objects {}; #relations {}".format(img_fname, len(objects), len(ann)))
+            print("{}: Handle pic {}; #objects {}; #relations {}".format(ind, img_fname, len(objects), len(ann)))
             # `objects` holds unique objects in this image
             objects = list(objects)
 
@@ -89,6 +98,9 @@ def main(_):
                 # iterate all possible object pairs
                 pairs = list(product(range(len(objects)), range(len(objects))))
                 for pair in pairs:
+                    if pair[0] == pair[1]:
+                        # relation must be between two different objects
+                        continue
                     predict_rel_lst.extend([(i, pair[0], pair[1]) for i in range(70)])
                     data = np.array(img.crop(_get_box(objects[pair[0]].bbox, objects[pair[1]].bbox)).resize([224, 224], PIL.Image.BILINEAR))
                     predictions = np.squeeze(sess.run(model.prediction, feed_dict={model.image_feed: data.tostring()}))
@@ -106,7 +118,7 @@ def main(_):
             for rel in ann:
                 data = np.array(img.crop(_get_box(rel["object"]["bbox"], rel["subject"]["bbox"])).resize([224, 224], PIL.Image.BILINEAR))
                 predictions = np.squeeze(sess.run(model.prediction, feed_dict={model.image_feed: data.tostring()}))
-                samples_dct[img_fname]["positive"].append((rel["predicate"], rel["object"]["category"], rel["subject"]["category"], predictions[rel["predicate"]]))
+                samples_dct["positive"].append((rel["predicate"], rel["object"]["category"], rel["subject"]["category"], predictions[rel["predicate"]]))
                 # Add several negative relations that have the same object pair as this positive relation
                 sort_inds = np.argsort(predictions)[::-1][:FLAGS.same_obj_neg_samples+1]
                 find = np.where(sort_inds == rel["predicate"])[0]
@@ -114,26 +126,31 @@ def main(_):
                     sort_inds = np.delete(sort_inds, find)
                 else:
                     sort_inds = sort_inds[:FLAGS.same_obj_neg_samples]
-                samples_dct[img_fname]["negative"].extend([(i, rel["object"]["category"], rel["subject"]["category"], predictions[i]) for i in sort_inds])
-            print("\tadded {} same-obj negative relationships".format(len(samples_dct[img_fname]["negative"])))
+                samples_dct["negative"].extend([(i, rel["object"]["category"], rel["subject"]["category"], predictions[i]) for i in sort_inds])
+            print("\tadded {} same-obj negative relationships".format(len(samples_dct["negative"])))
 
             # Evaluate diff-obj negative relationship samples
             get_diff_neg_num = 0
-            while get_diff_neg_num < FLAGS.diff_obj_neg_samples:
-                obj = int(np.random.uniform(0, len(objects)-0.1))
-                sub = int(np.random.uniform(0, len(objects)-0.1))
-                if (obj, sub) in rel_set:
+            # There are not enough negative samples in some pictures
+            # multiply by `NEG_MARGIN` to avoid sampling too slow
+            num_diff_neg_samples = min(FLAGS.diff_obj_neg_samples,
+                                       int((len(objects) * (len(objects) - 1) - len(rel_set)) * NEG_MARGIN))
+            while get_diff_neg_num < num_diff_neg_samples:
+                obj = int(np.random.uniform(0, len(objects)))
+                sub = int(np.random.uniform(0, len(objects)))
+                if (obj, sub) in rel_set or obj == sub:
                     continue
                 data = np.array(img.crop(_get_box(objects[obj].bbox, objects[sub].bbox)).resize([224, 224], PIL.Image.BILINEAR))
                 predictions = np.squeeze(sess.run(model.prediction, feed_dict={model.image_feed: data.tostring()}))
                 sort_inds = np.argsort(predictions)[::-1]
-                samples_dct[img_fname]["negative"].extend([(i, objects[obj].category, objects[sub].category, predictions[i]) for i in sort_inds[:FLAGS.diff_obj_neg_num]])
+                samples_dct["negative"].extend([(i, objects[obj].category, objects[sub].category, predictions[i]) for i in sort_inds[:FLAGS.diff_obj_neg_num]])
                 get_diff_neg_num += 1
-            print("\tadded {} diff-obj negative relationships".format(FLAGS.diff_obj_neg_samples * FLAGS.diff_obj_neg_num))
-
-    # FIXME: 是不是其实可以cross-image, 直接把所有positive拼在一起, 所有negative拼在一起就行了
-    print("Saving pos/neg visual scores to {}...".format(FLAGS.save))
-    cPickle.dump(samples_dct, open(FLAGS.save, "w"))
+            print("\tadded {} diff-obj negative relationships".format(num_diff_neg_samples * FLAGS.diff_obj_neg_num))
+            for s in samples_dct["positive"]:
+                samples_wf.write("{} 1 {} {} {} {}\n".format(ind, *s))
+            for s in samples_dct["negative"]:
+                samples_wf.write("{} 0 {} {} {} {}\n".format(ind, *s))
+            ind_fname_wf.write("{} {}\n".format(ind, img_fname))
 
     if FLAGS.cal_recall:
         mean_recall50 = np.mean(recalls_50_dct.values())

@@ -54,7 +54,11 @@ class LanguageModelConfig(object):
         # bigger temperature -> will choose less-frequent occured relationships as postive samples relatively frequently
         self.L_sample_temperature = 10.
         self.positive_relations_file = "./model/positive_relations.txt"
+        self.visual_scores_file = "./visual_scores.txt"
+
         self.min_pos_neg_diff = 5
+
+        self.C_cross_image = True
 
         ## training configs
         self.initializer_scale = 0.01
