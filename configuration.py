@@ -31,13 +31,15 @@ class ModelConfig(object):
 
         self.batch_size = 32
 
+# FIXME: 为了好看还是应该把TrainConfig和LanguageModelConfig分开
 class LanguageModelConfig(object):
     def __init__(self):
         self.num_predicates = 70
         self.num_objects = 100
         self.dim_embedding = 300
 
-        self.embedding_file = "./model/embedding.npz"
+        self.embedding_file = "./model/embeddings.npz"
+        self.predicate_embedding_file = "./model/predicate_embeddings.npz"
 
         self.initializer_scale = 0.01
 
@@ -53,3 +55,14 @@ class LanguageModelConfig(object):
         self.L_sample_temperature = 10.
         self.positive_relations_file = "./model/positive_relations.txt"
         self.min_pos_neg_diff = 5
+
+        ## training configs
+        self.initializer_scale = 0.01
+
+        self.clip_gradients = 5.
+
+        self.max_checkpoints_to_keep = 5
+
+        self.optimizer = "Adam"
+
+        self.batch_size = 32
