@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+Visual module.
+"""
 
 from __future__ import absolute_import
 from __future__ import division

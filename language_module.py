@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+Language module.
+"""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -119,11 +122,40 @@ class LanguageModule(object):
         tf.summary.scalar("losses/L_loss", self.config.coeff_L * L_loss)
 
     def build_C_loss(self):
-        # 每张图片是单独还是across图片... acorss图片就只能采样了...
-        # 暂且认为每张图片单独
-        # records的格式应该是每张图片给true relations一堆并且带上v_score, false relation一堆并且带上v_score
-        # 对于一定量的图片算一个C loss.
-        pass
+        if self.config.C_cross_image:
+            # FIXME: 这里并不完全与论文一样...论文也讲的不清楚
+            # 这里先试试不加triple要不等于的约束
+            with open(self.config.visual_scores_file, "r") as f:
+                lines = [line for line in f.readlines() if line.strip()]
+
+            lines = [line.split(" ")[1:] for line in lines]
+            pos_lines = [line[1:] for line in lines if int(line[0]) == 1]
+            neg_lines = [line[1:] for line in lines if int(line[0]) == 0]
+
+            positives = np.array(pos_lines)
+            pos_pred = positives[:, 0].astype(np.int32)
+            pos_obj1 = positives[:, 1].astype(np.int32)
+            pos_obj2 = positives[:, 2].astype(np.int32)
+            pos_vscores = positives[:, 3].astype(np.float32)
+
+            negatives = np.array(neg_lines).astype(np.float32)
+            neg_pred = negatives[:, 0].astype(np.int32)
+            neg_obj1 = negatives[:, 1].astype(np.int32)
+            neg_obj2 = negatives[:, 2].astype(np.int32)
+            neg_vscores = negatives[:, 3].astype(np.float32)
+
+            # calculate max negative scores
+            neg_fscores = tf.reduce_sum(self.f_scores(neg_obj1, neg_obj2) * 
+                                        tf.one_hot(neg_pred, self.config.num_predicates),
+                                        axis=1)
+            max_neg_fvscore = tf.reduce_max(neg_fscores * neg_vscores)
+            pos_fscores = tf.reduce_sum(self.f_scores(pos_obj1, pos_obj2) * 
+                                        tf.one_hot(pos_pred, self.config.num_predicates),
+                                        axis=1)
+            # Ranking loss
+            C_loss = tf.reduce_sum(tf.maximum(max_neg_fvscore - pos_fscores + 1, 0))
+            tf.losses.add_loss(C_loss)
+            tf.summary.scalar("losses/C_loss", C_loss)
 
     def f_scores(self, obj1, obj2):
         with tf.device('/cpu:0'):

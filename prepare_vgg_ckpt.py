@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+"""
+This is a deprecated script for preparing inital pretrained vgg checkpoint.
+As I think there is no available pretrained VGG16 model in tensorflow's format...
+
+Now, use this checkpointdirectly: https://github.com/tensorflow/models/tree/master/slim#Pretrained
+"""
+
 from __future__ import print_function
 import numpy as np
 import tensorflow as tf
