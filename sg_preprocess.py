@@ -1,3 +1,7 @@
+"""
+The script for preprocessing data for visual module training.
+"""
+
 from __future__ import print_function
 import os
 import numpy as np

@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+"""
+An ugly configuration module, `ModelConfig`, `LanguageModuleConfig` contains data/model/training informations.
+
+@TODO: Maybe refactor in the future.
+"""
 
 class ModelConfig(object):
     def __init__(self):

@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+The script to train visual module.
+"""
 
 from __future__ import absolute_import
 from __future__ import division
