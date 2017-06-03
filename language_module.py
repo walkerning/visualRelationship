@@ -68,8 +68,8 @@ class LanguageModule(object):
         first_fscores = tf.reduce_sum(self.f_scores(first[:, 1], first[:, 2]) * tf.one_hot(first[:, 0], self.config.num_predicates), axis=1)
         second_fscores = tf.reduce_sum(self.f_scores(second[:, 1], second[:, 2]) * tf.one_hot(second[:, 0], self.config.num_predicates), axis=1)
         _, K_loss = tf.nn.moments(tf.square(tf.squeeze(first_fscores - second_fscores)) / dists, [0])
-        tf.losses.add_loss(K_loss)
-        tf.summary.scalar("losses/K_loss", self.config.coeff_K * K_loss)
+        tf.losses.add_loss(self.config.coeff_K * K_loss)
+        tf.summary.scalar("losses/K_loss", K_loss)
 
     def build_L_loss(self):
         # L loss需要处理一遍数据集. 看看没个对出现的次数. 然后做negative sample也是实现构建好samples的loss
@@ -118,8 +118,8 @@ class LanguageModule(object):
                                     axis=1)
         # Ranking loss: award frequently-occuring relations
         L_loss = tf.reduce_sum(tf.maximum(neg_fscores - pos_fscores + 1, 0))
-        tf.losses.add_loss(L_loss)
-        tf.summary.scalar("losses/L_loss", self.config.coeff_L * L_loss)
+        tf.losses.add_loss(self.config.coeff_L * L_loss)
+        tf.summary.scalar("losses/L_loss", L_loss)
 
     def build_C_loss(self):
         if self.config.C_cross_image:
@@ -145,16 +145,16 @@ class LanguageModule(object):
             neg_vscores = negatives[:, 3].astype(np.float32)
 
             # calculate max negative scores
-            neg_fscores = tf.reduce_sum(self.f_scores(neg_obj1, neg_obj2) * 
-                                        tf.one_hot(neg_pred, self.config.num_predicates),
+            neg_fscores = tf.reduce_mean(self.f_scores(neg_obj1, neg_obj2) * 
+                                         tf.one_hot(neg_pred, self.config.num_predicates),
                                         axis=1)
             max_neg_fvscore = tf.reduce_max(neg_fscores * neg_vscores)
             pos_fscores = tf.reduce_sum(self.f_scores(pos_obj1, pos_obj2) * 
                                         tf.one_hot(pos_pred, self.config.num_predicates),
                                         axis=1)
             # Ranking loss
-            C_loss = tf.reduce_sum(tf.maximum(max_neg_fvscore - pos_fscores + 1, 0))
-            tf.losses.add_loss(C_loss)
+            C_loss = tf.reduce_mean(tf.maximum(max_neg_fvscore - pos_fscores + 1, 0))
+            tf.losses.add_loss(self.config.coeff_C * C_loss)
             tf.summary.scalar("losses/C_loss", C_loss)
 
     def f_scores(self, obj1, obj2):

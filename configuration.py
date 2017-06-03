@@ -51,7 +51,8 @@ class LanguageModelConfig(object):
         #self.num_K_samples = 500000
         # K loss
         self.num_K_samples = 10000
-        self.coeff_K = 0.002
+        # self.coeff_K = 0.002
+        self.coeff_K = 0.1
 
         # L loss
         self.num_L_samples = 5000
@@ -59,7 +60,10 @@ class LanguageModelConfig(object):
         # bigger temperature -> will choose less-frequent occured relationships as postive samples relatively frequently
         self.L_sample_temperature = 10.
         self.positive_relations_file = "./model/positive_relations.txt"
+
+        # C loss
         self.visual_scores_file = "./visual_scores.txt"
+        self.coeff_C = 1.
 
         self.min_pos_neg_diff = 5
 
