@@ -31,7 +31,7 @@ def _get_logits(sess, data, model):
     return np.squeeze(
             sess.run(model.prediction, 
             feed_dict = {
-                model.image_feed : model.image_feed : data.tostring()}))
+                model.image_feed: data.tostring()}))
 
 def _softmax(x):
     e_x = np.exp(x)
@@ -41,7 +41,7 @@ def _entropy(logits, pred):
     scores = _softmax(logits)
     return -math.log(scores[pred])
 
-def _remove_square(image, size = 30, Xstart, Ystart):
+def _remove_square(image, size, Xstart, Ystart):
     # black out image[Ystart : Ystart + size, Xstart : Xstart + 30]
     img = np.array(image)
     img_size = img.shape
@@ -66,6 +66,18 @@ def _roll_image(sess, img, size, pred, model):
 
     return loss_metric
 
+def _metric_mean(loss_metric, size = 30):
+    img_size = loss_metric.shape
+    new_metric = np.zeros(img_size[0], img_size[1])
+
+    for ii in range(size, img_size[0] - size):
+        for jj in range(size, image_size[1] - size):
+            cut = loss_metric[ii - size : ii + size][jj - size : jj + size]
+            new_metric[ii][jj] = np.mean(cut)
+
+    return new_metric
+    
+
 def main():
 
     model_config = ModelConfig()
@@ -76,17 +88,22 @@ def main():
     annotations = json.load(open(FLAGS.annotation_file, 'r'))
     saver = tf.train.Saver()
 
-    image_name = []
-    prediction = []
+    image_name = ['1807338675_5e13fe07f9_o.jpg']
+    prediction = [0]
 
     with tf.Session() as sess:
-        sess.run(tf.global_variales_initializer())
+        sess.run(tf.global_variables_initializer())
         saver.restore(sess, FLAGS.checkpoint_file)
-        for ii in images_name:
-            image_fname = os.path.join(FLAGS.dataset_path, ii)
+        for ii in range(len(images_name)):
+            image_fname = os.path.join(FLAGS.dataset_path, image_name[ii])
             if not os.path.isfile(image_fname):
                 print("file {} does not exist".format(image_fname))
                 continue
             img = Image.open(image_fname)
+            loss = _roll_image(sess, img, 30, prediction[ii], model)
+            loss_mean = _metric_mean(loss, 30)
+            loss_mean.tofile("./output")
+
+
 
         
