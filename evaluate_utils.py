@@ -56,12 +56,14 @@ def calculate_recall(true_rel_pred_set, objects, get_pred, return_top_k=1):
 
     sort_inds = np.argsort(predict_lst)[::-1]
     # recall 50
-    recall_50 = float(len(set([tuple(r) for r in np.array(predict_rel_lst)[sort_inds[:50]].tolist()]).intersection(true_rel_pred_set))) / len(true_rel_pred_set)
+    match_50 = len(set([tuple(r) for r in np.array(predict_rel_lst)[sort_inds[:50]].tolist()]).intersection(true_rel_pred_set))
+    recall_50 = float(match_50) / len(true_rel_pred_set)
     # recall 100
-    recall_100 = float(len(set([tuple(r) for r in np.array(predict_rel_lst)[sort_inds[:100]].tolist()]).intersection(true_rel_pred_set))) / len(true_rel_pred_set)
+    match_100 = len(set([tuple(r) for r in np.array(predict_rel_lst)[sort_inds[:100]].tolist()]).intersection(true_rel_pred_set))
+    recall_100 = float(match_100) / len(true_rel_pred_set)
     # the top-k prediction
     top_k_predictions = zip([tuple(r) for r in np.array(predict_rel_lst)[sort_inds[:return_top_k]]], np.array(predict_lst)[sort_inds[:return_top_k]].tolist())
-    return recall_50, recall_100, top_k_predictions
+    return recall_50, recall_100, match_50, match_100, top_k_predictions
 
 
 def _softmax(x):
@@ -77,4 +79,4 @@ _post_process_funcs = {
 
 def get_post_process_func(name):
     assert name in _post_process_funcs, "Legal post process funcs include: _post_process_funcs.keys()"
-    return _post_process_funcs(name)
+    return _post_process_funcs[name]

@@ -43,9 +43,9 @@ def main(_):
     model.build()
     #learning_rate = 0.001
     learning_rate = tf.train.exponential_decay(
-        0.001,
+        0.00001,
         model.global_step,
-        decay_steps=3000,
+        decay_steps=1000,
         decay_rate=0.1,
         staircase=True)
     tf.summary.scalar("learning_rate", learning_rate)

@@ -64,15 +64,27 @@ class VisualModule(object):
     def build_model(self):
         model_fn = getattr(vgg, self.config.vgg_type)
         
-        logits, _ = model_fn(self.image,
+        logits, endpoints = model_fn(self.image,
                              is_training=(self.mode == "train"),
                              num_classes=self.config.num_predicates,
                              scope=self.config.vgg_type)
         self.vgg_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.config.vgg_type)
+
         if self.mode == "inference":
             #self.prediction = tf.nn.softmax(logits, name="softmax")
             self.prediction = logits
         else:
+            # summary the logits and some activations
+            with tf.name_scope("logits"):
+                for pred in range(self.config.num_predicates):
+                    tf.summary.histogram("logits_{}".format(pred), logits[:, pred])
+            for end_name in self.config.summary_endpoints:
+                tf.summary.histogram("{}/activations".format(end_name), endpoints[self.config.vgg_type + "/" + end_name])
+            # summary weights/biases of fc layers:
+            fc_variables = [v for v in self.vgg_variables if "fc" in v.op.name]
+            for v in fc_variables:
+                tf.summary.histogram(v.op.name, v)
+
             batch_correct = tf.equal(tf.argmax(logits, 1), self.labels)
             batch_accuracy = tf.reduce_mean(tf.cast(batch_correct, tf.float32))
             batch_top5_correct = tf.nn.in_top_k(logits, self.labels, 5)

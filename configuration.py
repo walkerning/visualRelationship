@@ -36,6 +36,8 @@ class ModelConfig(object):
 
         self.batch_size = 32
 
+        self.summary_endpoints = ["fc6", "fc7"]
+
 # FIXME: 为了好看还是应该把TrainConfig和LanguageModelConfig分开
 class LanguageModelConfig(object):
     def __init__(self):

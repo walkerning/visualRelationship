@@ -18,7 +18,7 @@ import PIL
 from PIL import Image
 import tensorflow as tf
 
-from evaluate_utils import parse_annotation, get_union_box, calculate_recall
+from evaluate_utils import parse_annotation, get_union_box, calculate_recall, get_post_process_func
 from visual_relation_module import VisualModule
 from language_module import LanguageModule
 from configuration import ModelConfig, LanguageModelConfig
@@ -42,7 +42,7 @@ tf.flags.DEFINE_boolean("verbose", True,
 def main(_):
     assert FLAGS.visual_checkpoint_file, "--visual_checkpoint_file is required"
     assert FLAGS.language_checkpoint_file, "--language_checkpoint_file is required"
-    post_process_vscore = get_post_process_func[FLAGS.post_process]
+    post_process_vscore = get_post_process_func(FLAGS.post_process)
 
     annotations = json.load(open(FLAGS.annotation_file, "r"))
     num_examples = len(annotations)
@@ -61,8 +61,11 @@ def main(_):
     l_saver = tf.train.Saver({v.op.name[v.op.name.find("/", 1) + 1:]:v for v in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="language")})
     recalls_50_dct = {}
     recalls_100_dct = {}
+    matches_50_dct = {}
+    matches_100_dct = {}
 
     top1_correct = 0
+    num_total_rel = 0
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         v_saver.restore(sess, FLAGS.visual_checkpoint_file)
@@ -80,6 +83,7 @@ def main(_):
             if len(objects) == 1:
                 # Some pictures's bbox annotation is wrong... eg. "366773716_1d06242e38_o.jpg" in the train set
                 continue
+            num_total_rel += len(rel_set)
             num_actual_examples += 1
             print("{}: Handle pic {}; #objects {}; #relations {}".format(ind, img_fname, len(objects), len(ann)))
 
@@ -94,7 +98,7 @@ def main(_):
                 l_predictions = np.squeeze(sess.run(l_model.prediction, feed_dict={l_model.obj1_feed: [obj1.category], l_model.obj2_feed: [obj2.category]}))
                 return v_predictions * l_predictions
 
-            recalls_50_dct[img_fname], recalls_100_dct[img_fname], top_1_predictions = calculate_recall(rel_pred_set, objects, get_pred)
+            recalls_50_dct[img_fname], recalls_100_dct[img_fname], matches_50_dct[img_fname], matches_100_dct[img_fname], top_1_predictions = calculate_recall(rel_pred_set, objects, get_pred)
             cor = top_1_predictions[0][0] in rel_pred_set
             top1_correct += cor
             if FLAGS.verbose:
@@ -104,11 +108,14 @@ def main(_):
                                                                                   obj, sub, top_1_predictions[0][1]))
 
 
+    print("number actual valid examples: {}; number valid annotated relation: {}".format(num_actual_examples, num_total_rel))
     mean_recall50 = np.mean(recalls_50_dct.values())
     mean_recall100 = np.mean(recalls_100_dct.values())
-    print("number actual valid examples: {}".format(num_actual_examples))
-    top1_correct = float(top1_correct) / num_actual_examples
     print("mean recall@50: {}\nmean recall@100: {}".format(mean_recall50, mean_recall100))
+    matches_recall50 = np.sum(matches_50_dct.values()) / num_total_rel
+    matches_recall100 = np.sum(matches_100_dct.values()) / num_total_rel
+    print("recall_time@50: {}\nrecall_time@100: {}".format(matches_recall50, matches_recall100))
+    top1_correct = float(top1_correct) / num_actual_examples
     print("top1 accuracy: {}".format(top1_correct))
     recall_fname = "vl_mean_recalls_{}.pkl".format(int(time.time()))
     print("Writing recall information into {}.".format(recall_fname))
