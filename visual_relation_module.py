@@ -109,7 +109,8 @@ class VisualModule(object):
             collections=[tf.GraphKeys.GLOBAL_STEP, tf.GraphKeys.GLOBAL_VARIABLES])
 
     def build(self):
-        self.setup_global_step()
+        if self.mode == "train":
+            self.setup_global_step()
         self.build_inputs()
         self.build_model()
         self.setup_vgg_initializer()

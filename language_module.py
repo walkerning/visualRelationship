@@ -27,13 +27,15 @@ class LanguageModule(object):
                 name="predicate_embedding",
                 shape=[self.config.num_predicates, self.config.dim_embedding],
                 trainable=False,
-                initializer=tf.constant_initializer(predicate_embedding_init)
+                initializer=tf.constant_initializer(predicate_embedding_init),
+                dtype=tf.float32
             )
             self.embeddings = tf.get_variable(
                 name="embedding",
                 shape=[self.config.num_objects, self.config.dim_embedding],
                 trainable=False,
-                initializer=tf.constant_initializer(embedding_init)
+                initializer=tf.constant_initializer(embedding_init),
+                dtype=tf.float32
             )
 
     def setup_f_scores(self):
@@ -46,7 +48,7 @@ class LanguageModule(object):
                 weights_initializer=weights_initializer,
             biases_initializer=None)
             return f_scores
-        self._get_f_scores = tf.make_template("get_f_scores", _f_scores, num_outputs=self.config.num_predicates,
+        self.get_f_scores = tf.make_template("get_f_scores", _f_scores, num_outputs=self.config.num_predicates,
                                               weights_initializer=self.initializer)
 
     def build_K_loss(self):
@@ -157,12 +159,17 @@ class LanguageModule(object):
             tf.losses.add_loss(self.config.coeff_C * C_loss)
             tf.summary.scalar("losses/C_loss", C_loss)
 
+    def setup_inference(self):
+        self.obj1_feed = tf.placeholder(dtype=tf.int32, shape=[None], name="obj1_feed")
+        self.obj2_feed = tf.placeholder(dtype=tf.int32, shape=[None], name="obj2_feed")
+        self.prediction = self.f_scores(self.obj1_feed, self.obj2_feed)
+
     def f_scores(self, obj1, obj2):
         with tf.device('/cpu:0'):
             obj1_embedding = tf.nn.embedding_lookup(self.embeddings, obj1)
             obj2_embedding = tf.nn.embedding_lookup(self.embeddings, obj2)
         whole_embedding = tf.concat([obj1_embedding, obj2_embedding], 1)
-        return self._get_f_scores(whole_embedding)
+        return self.get_f_scores(whole_embedding)
 
     def setup_global_step(self):
         self.global_step = tf.Variable(
@@ -172,10 +179,15 @@ class LanguageModule(object):
             collections=[tf.GraphKeys.GLOBAL_STEP, tf.GraphKeys.GLOBAL_VARIABLES])
 
     def build(self):
-        self.setup_global_step()
-        self.setup_embedding()
-        self.setup_f_scores()
-        self.build_K_loss()
-        self.build_L_loss()
-        self.build_C_loss()
-        self.total_loss = tf.losses.get_total_loss()
+        if self.mode == "train":
+            self.setup_global_step()
+            self.setup_embedding()
+            self.setup_f_scores()
+            self.build_K_loss()
+            self.build_L_loss()
+            self.build_C_loss()
+            self.total_loss = tf.losses.get_total_loss()
+        else:
+            self.setup_embedding()
+            self.setup_f_scores()
+            self.setup_inference()
