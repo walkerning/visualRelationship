@@ -9,6 +9,7 @@ from __future__ import print_function
 
 import os
 import json
+import time
 import cPickle
 
 import scipy
@@ -33,12 +34,16 @@ tf.flags.DEFINE_string("annotation_file", "./annotations_train.json",
                        "Annotation file name.")
 tf.flags.DEFINE_string("dataset_path", "./sg_dataset/sg_train_images",
                        "The path where the images are stored.")
+tf.flags.DEFINE_string("post_process", "none",
+                       "Post process the logits to get v score. Default `none`, can choose `softmax`, `relu`.")
 tf.flags.DEFINE_boolean("verbose", True,
                         "Print verbose information.")
 
 def main(_):
     assert FLAGS.visual_checkpoint_file, "--visual_checkpoint_file is required"
     assert FLAGS.language_checkpoint_file, "--language_checkpoint_file is required"
+    post_process_vscore = get_post_process_func[FLAGS.post_process]
+
     annotations = json.load(open(FLAGS.annotation_file, "r"))
     num_examples = len(annotations)
     num_actual_examples = 0
@@ -85,6 +90,7 @@ def main(_):
                 data = np.array(img.crop(get_union_box(obj1.bbox, obj2.bbox)).resize([224, 224], PIL.Image.BILINEAR))
                 
                 v_predictions = np.squeeze(sess.run(model.prediction, feed_dict={model.image_feed: data.tostring()}))
+                v_predictions = post_process_vscore(v_predictions)
                 l_predictions = np.squeeze(sess.run(l_model.prediction, feed_dict={l_model.obj1_feed: [obj1.category], l_model.obj2_feed: [obj2.category]}))
                 return v_predictions * l_predictions
 

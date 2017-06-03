@@ -21,7 +21,7 @@ import PIL
 from PIL import Image
 import tensorflow as tf
 
-from evaluate_utils import parse_annotation, get_union_box, calculate_recall
+from evaluate_utils import parse_annotation, get_union_box, calculate_recall, get_post_process_func
 from visual_relation_module import VisualModule
 from configuration import ModelConfig
 
@@ -35,24 +35,28 @@ tf.flags.DEFINE_string("annotation_file", "./annotations_train.json",
                        "Annotation file name.")
 tf.flags.DEFINE_string("dataset_path", "./sg_dataset/sg_train_images",
                        "The path where the images are stored.")
-tf.flags.DEFINE_integer("same_obj_neg_samples", 3, "")
-tf.flags.DEFINE_integer("diff_obj_neg_samples", 10, "")
-tf.flags.DEFINE_integer("diff_obj_neg_num", 2, "")
+tf.flags.DEFINE_string("post_process", "none",
+                      "Post process the logits to get v score. Default `none`, can choose `softmax`, `relu`.")
 tf.flags.DEFINE_boolean("cal_recall", True, 
                         "Whether or not to calucate recall.")
 tf.flags.DEFINE_boolean("cal_vscore", True,
                         "Whether or not to calucate visual score for language model training.")
+tf.flags.DEFINE_integer("same_obj_neg_samples", 3, "")
+tf.flags.DEFINE_integer("diff_obj_neg_samples", 10, "")
+tf.flags.DEFINE_integer("diff_obj_neg_num", 2, "")
 tf.flags.DEFINE_boolean("verbose", False,
                         "Whether or not to print more verbose information.")
 tf.flags.DEFINE_string("save", "",
                        "The pkl file name to save the pos/neg visual scores.")
 
-
 def main(_):
     assert FLAGS.checkpoint_file, "--checkpoint_file is required"
     assert FLAGS.cal_vscore or FLAGS.cal_recall, "What are you doing if you are not calculating vscore neither recall???"
+    post_process_vscore = get_post_process_func[FLAGS.post_process]
+
     if FLAGS.cal_vscore:
         assert FLAGS.save, "--save is reuiqred when calculating vscores "
+
     annotations = json.load(open(FLAGS.annotation_file, "r"))
     num_examples = len(annotations)
     num_actual_examples = 0
@@ -99,7 +103,8 @@ def main(_):
                     obj1, obj2 are both of type `evluation_utils.Object`
                     """
                     data = np.array(img.crop(get_union_box(obj1.bbox, obj2.bbox)).resize([224, 224], PIL.Image.BILINEAR))
-                    return np.squeeze(sess.run(model.prediction, feed_dict={model.image_feed: data.tostring()}))
+                    predictions = np.squeeze(sess.run(model.prediction, feed_dict={model.image_feed: data.tostring()}))
+                    return post_process_vscore(predictions)
                 recalls_50_dct[img_fname], recalls_100_dct[img_fname], top_1_predictions = calculate_recall(rel_pred_set, objects, get_pred)
                 cor = top_1_predictions[0][0] in rel_pred_set
                 top1_correct += cor
@@ -114,6 +119,7 @@ def main(_):
                 for rel in ann:
                     data = np.array(img.crop(get_union_box(rel["object"]["bbox"], rel["subject"]["bbox"])).resize([224, 224], PIL.Image.BILINEAR))
                     predictions = np.squeeze(sess.run(model.prediction, feed_dict={model.image_feed: data.tostring()}))
+                    predictions = post_process_vscore(predictions)
                     samples_dct["positive"].append((rel["predicate"], rel["object"]["category"], rel["subject"]["category"], predictions[rel["predicate"]]))
                     # Add several negative relations that have the same object pair as this positive relation
                     sort_inds = np.argsort(predictions)[::-1][:FLAGS.same_obj_neg_samples+1]
@@ -138,6 +144,7 @@ def main(_):
                         continue
                     data = np.array(img.crop(get_union_box(objects[obj].bbox, objects[sub].bbox)).resize([224, 224], PIL.Image.BILINEAR))
                     predictions = np.squeeze(sess.run(model.prediction, feed_dict={model.image_feed: data.tostring()}))
+                    predictions = post_process_vscore(predictions)
                     sort_inds = np.argsort(predictions)[::-1]
                     samples_dct["negative"].extend([(i, objects[obj].category, objects[sub].category, predictions[i]) for i in sort_inds[:FLAGS.diff_obj_neg_num]])
                     get_diff_neg_num += 1

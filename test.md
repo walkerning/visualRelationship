@@ -21,3 +21,9 @@ Langauge model + visual model
 
 不过已经不都只预测on了...这个从某种意义上好点......
 感觉不同triple的f_score是不是差距有点偏大...
+
+train: 这特么也太坑了...
+number actual valid examples: 3778
+mean recall@50: 0.10051915784
+mean recall@100: 0.171169408576
+top1 accuracy: 0.00582318687136
