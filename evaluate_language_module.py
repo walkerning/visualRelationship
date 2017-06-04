@@ -61,8 +61,10 @@ def main(_):
     l_saver = tf.train.Saver({v.op.name[v.op.name.find("/", 1) + 1:]:v for v in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="language")})
     recalls_50_dct = {}
     recalls_100_dct = {}
+    recalls_num_dct = {}
     matches_50_dct = {}
     matches_100_dct = {}
+    matches_num_dct = {}
 
     top1_correct = 0
     num_total_rel = 0
@@ -98,11 +100,11 @@ def main(_):
                 l_predictions = np.squeeze(sess.run(l_model.prediction, feed_dict={l_model.obj1_feed: [obj1.category], l_model.obj2_feed: [obj2.category]}))
                 return v_predictions * l_predictions
 
-            recalls_50_dct[img_fname], recalls_100_dct[img_fname], matches_50_dct[img_fname], matches_100_dct[img_fname], top_1_predictions = calculate_recall(rel_pred_set, objects, get_pred)
+            recalls_50_dct[img_fname], recalls_100_dct[img_fname], recalls_num_dct[img_fname], matches_50_dct[img_fname], matches_100_dct[img_fname], matches_num_dct[img_fname],  top_1_predictions = calculate_recall(rel_pred_set, objects, get_pred)
             cor = top_1_predictions[0][0] in rel_pred_set
             top1_correct += cor
             if FLAGS.verbose:
-                print("\trecall@50: {}\n\trecall@100: {}".format(recalls_50_dct[img_fname], recalls_100_dct[img_fname]))
+                print("\trecall@50: {}\n\trecall@100: {}\n\trecall@25: {}\n\t".format(recalls_50_dct[img_fname], recalls_100_dct[img_fname], recalls_num_dct[img_fname]))
                 obj, sub = objects[top_1_predictions[0][0][1]].category, objects[top_1_predictions[0][0][2]].category
                 print("\t{}: the top-1 prediction is ({} {} {}), score {}".format("CORRECT" if cor else "FALSE", top_1_predictions[0][0][0],
                                                                                   obj, sub, top_1_predictions[0][1]))
@@ -111,15 +113,18 @@ def main(_):
     print("number actual valid examples: {}; number valid annotated relation: {}".format(num_actual_examples, num_total_rel))
     mean_recall50 = np.mean(recalls_50_dct.values())
     mean_recall100 = np.mean(recalls_100_dct.values())
-    print("mean recall@50: {}\nmean recall@100: {}".format(mean_recall50, mean_recall100))
+    mean_recall25 = np.mean(recalls_num_dct.values())
+    print("mean recall@50: {}\nmean recall@100: {}\nmean recall@25: {}\n".format(mean_recall50, mean_recall100, mean_recall25))
     matches_recall50 = np.sum(matches_50_dct.values()) / num_total_rel
     matches_recall100 = np.sum(matches_100_dct.values()) / num_total_rel
-    print("recall_time@50: {}\nrecall_time@100: {}".format(matches_recall50, matches_recall100))
+    matches_recall25 = np.sum(matches_num_dct.values()) / num_total_rel
+
+    print("recall_time@50: {}\nrecall_time@100: {}\nrecall_time@25: {}\n".format(matches_recall50, matches_recall100, matches_recall25))
     top1_correct = float(top1_correct) / num_actual_examples
     print("top1 accuracy: {}".format(top1_correct))
     recall_fname = "vl_mean_recalls_{}.pkl".format(int(time.time()))
     print("Writing recall information into {}.".format(recall_fname))
-    cPickle.dump((recalls_50_dct, recalls_100_dct), open(recall_fname, "r"))
+    cPickle.dump((recalls_50_dct, recalls_100_dct, recalls_num_dct), open(recall_fname, "r"))
 
 if __name__ == "__main__":
     tf.app.run()

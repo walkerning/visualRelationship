@@ -39,7 +39,7 @@ def parse_annotation(annotation):
     objects = list(objects)
     return objects, rel_set, rel_pred_set
 
-def calculate_recall(true_rel_pred_set, objects, get_pred, return_top_k=1):
+def calculate_recall(true_rel_pred_set, objects, get_pred, return_top_k=1, recall_ave = 25):
     # calcualte recall@100, recall@50
     predict_rel_lst = [] # relation triple list
     predict_lst = [] # score list, one-to-one correspondance with `predict_rel_lst`
@@ -61,9 +61,15 @@ def calculate_recall(true_rel_pred_set, objects, get_pred, return_top_k=1):
     # recall 100
     match_100 = len(set([tuple(r) for r in np.array(predict_rel_lst)[sort_inds[:100]].tolist()]).intersection(true_rel_pred_set))
     recall_100 = float(match_100) / len(true_rel_pred_set)
+    
+    #recall user-specify number
+    match_num = len(set([tuple(r) for r in np.array(predict_rel_lst)[sort_inds[:recall_ave]].tolist()]).intersection(true_rel_pred_set))
+    recall_num = float(match_num) / len(true_rel_pred_set)
+
+
     # the top-k prediction
     top_k_predictions = zip([tuple(r) for r in np.array(predict_rel_lst)[sort_inds[:return_top_k]]], np.array(predict_lst)[sort_inds[:return_top_k]].tolist())
-    return recall_50, recall_100, match_50, match_100, top_k_predictions
+    return recall_50, recall_100, recall_num, match_50, match_100, match_num, top_k_predictions
 
 
 def _softmax(x):
