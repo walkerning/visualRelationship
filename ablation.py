@@ -22,16 +22,16 @@ tf.flags.DEFINE_string("dataset_path",
                        "/home/mxy/json_data/sg_dataset/sg_train_images",
                        "The path where the images are stored.")
 def _get_box(bbox1, bbox2):
-    return (min(bbox1[0], bbox2[0]),\
-            min(bbox1[2], bbox2[2]),\
-            max(bbox1[1], bbox2[1]),\
-            max(bbox1[3], bbox1[3]))
+    return (min(bbox1[2], bbox2[2]),\
+            min(bbox1[0], bbox2[0]),\
+            max(bbox1[3], bbox2[3]),\
+            max(bbox1[1], bbox1[1]))
 
 def _get_logits(sess, data, model):
     return np.squeeze(
             sess.run(model.prediction, 
             feed_dict = {
-                model.image_feed: data.tostring()}))
+                model.image_feed: data.tobytes()}))
 
 def _softmax(x):
     e_x = np.exp(x)
@@ -70,16 +70,15 @@ def _metric_mean(loss_metric, size = 30):
     img_size = loss_metric.shape
     new_metric = np.zeros(img_size[0], img_size[1])
 
-    for ii in range(size, img_size[0] - size):
-        for jj in range(size, image_size[1] - size):
-            cut = loss_metric[ii - size : ii + size][jj - size : jj + size]
+    for ii in range(img_size[0]):
+        for jj in range(img_size[1]):
+            cut = loss_metric[max(ii - size + 1, 0):ii+1, max(jj - size + 1, 0):jj+1]
             new_metric[ii][jj] = np.mean(cut)
-
     return new_metric
     
 
 def main():
-
+    assert FLAGS.checkpoint_file, "--checkpint_file is required"
     model_config = ModelConfig()
     model = VisualModule(model_config, mode = "inference")
     model.build()
@@ -88,22 +87,22 @@ def main():
     annotations = json.load(open(FLAGS.annotation_file, 'r'))
     saver = tf.train.Saver()
 
-    image_name = ['1807338675_5e13fe07f9_o.jpg']
+    images_name = ["./ablation_pics/1807338675_5e13fe07f9_o_0_5_20.jpg"]
     prediction = [0]
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         saver.restore(sess, FLAGS.checkpoint_file)
         for ii in range(len(images_name)):
-            image_fname = os.path.join(FLAGS.dataset_path, image_name[ii])
+            image_fname = os.path.join(FLAGS.dataset_path, images_name[ii])
             if not os.path.isfile(image_fname):
                 print("file {} does not exist".format(image_fname))
                 continue
             img = Image.open(image_fname)
+            assert (img.height, img.width) == (224, 224)
             loss = _roll_image(sess, img, 30, prediction[ii], model)
             loss_mean = _metric_mean(loss, 30)
-            loss_mean.tofile("./output")
+            loss_mean.tofile("./ablation_test_output.npz")
 
-
-
-        
+if __name__ == "__main__":
+    main()

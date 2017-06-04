@@ -13,10 +13,10 @@ def _add_to_dct(obj, dct):
     return dct[obj]
 
 def get_union_box(bbox1, bbox2):
-    return (min(bbox1[0], bbox2[0]),\
-            min(bbox1[2], bbox2[2]),\
-            max(bbox1[1], bbox2[1]),\
-            max(bbox1[3], bbox2[3]))
+    return (min(bbox1[2], bbox2[2]),\
+            min(bbox1[0], bbox2[0]),\
+            max(bbox1[3], bbox2[3]),\
+            max(bbox1[1], bbox2[1]))
 
 def parse_annotation(annotation):
     """

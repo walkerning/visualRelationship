@@ -20,10 +20,10 @@ def transform_bbox(bbox):
     return [bbox[0], bbox[2], bbox[1], bbox[3]]
 
 def _get_box(bbox1, bbox2):
-    return (min(bbox1[0], bbox2[0]),\
-            min(bbox1[1], bbox2[1]),\
-            max(bbox1[2], bbox2[2]),\
-            max(bbox1[3], bbox2[3]))
+    return (min(bbox1[2], bbox2[2]),\
+            min(bbox1[0], bbox2[0]),\
+            max(bbox1[3], bbox2[3]),\
+            max(bbox1[1], bbox2[1]))
 
 
 def _bytes_feature(value):
@@ -75,8 +75,8 @@ def main():
                 # bbox = [Ymin, Ymax, Xmin, Xmax]
                 bbox1 = train[ii][jj]['object']['bbox']
                 bbox2 = train[ii][jj]['subject']['bbox']
-                bbox1 = transform_bbox(bbox1)
-                bbox2 = transform_bbox(bbox2)
+                #bbox1 = transform_bbox(bbox1)
+                #bbox2 = transform_bbox(bbox2)
                 predicate = train[ii][jj]['predicate']
                 fname = os.path.join(args.dataset_dir, ii)
                 if not os.path.isfile(fname):
