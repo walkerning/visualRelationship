@@ -11,7 +11,11 @@ from sklearn.metrics import accuracy_score
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("save_file", help="The path to save the trained model")
+    subparsers = parser.add_subparsers(dest="phase")
+    train_parser = subparsers.add_parser("train")
+    train_parser.add_argument("save_file", help="The path to save the trained model")
+    test_parser = subparsers.add_parser("test")
+    test_parser.add_argument("load_file", help="The path to load the trained model")
     spec = inspect.getargspec(GBC.__init__.im_func)
     spec_args = spec.args[1:]
     deft = spec.defaults
@@ -20,7 +24,7 @@ def main():
             tp = int
         else:
             tp = type(deft[ind])
-        parser.add_argument("--" + param_name, type=tp, help="Set {} of GBC. type {}.".format(param_name, tp))
+        train_parser.add_argument("--" + param_name, type=tp, help="Set {} of GBC. type {}.".format(param_name, tp))
 
     train_ann_file = "./annotations_train.json"
     test_ann_file = "./annotations_test.json"
@@ -31,16 +35,27 @@ def main():
     train_features, train_labels = parse_annotations(train_annotations)
     test_features, test_labels = parse_annotations(test_annotations)
 
-    print("Start fitting the classifier...")
-    classifier = GBC()
-    print("The hyper parameters of this GBC:")
-    pprint(classifier.get_params())
-    train_predictions = classifier.fit_transform(train_features, train_labels)
-
-    print("train accuracy: {}".format(accuracy_score(train_labels, train_predictions, sample_weight=sample_weight)))
+    if args.phase == "train":
+        print("Start fitting the classifier...")
+        classifier = GBC()
+        print("The hyper parameters of this GBC:")
+        pprint(classifier.get_params())
+        classifier.fit(train_features, train_labels)
+    else:
+        classifier = cPickle.load(open(args.load_file, "r"))
+    train_predictions = classifier.predict(train_features)
+    train_proba = classifier.predict_proba(train_features)
+    eps = 1e-12
+    train_cross_entropy_loss = -np.sum(np.log(proba[label] + eps) for proba, label in zip(train_proba, train_labels.astype(int)))
+    print("train accuracy: {}".format(accuracy_score(train_labels, train_predictions)))
+    print("train cross entropy loss: {}; mean: {}".format(train_cross_entropy_loss, train_cross_entropy_loss / len(train_labels)))
+    test_proba = classifier.predict_proba(test_features)
+    test_cross_entropy_loss = -np.sum(np.log(proba[label] + eps) for proba, label in zip(test_proba, test_labels.astype(int)))
     print("test accuracy: {}".format(classifier.score(test_features, test_labels)))
-    print("Saving model to {}.".format(args.save_file))
-    cPickle.dump(classifier, open(args.save_file, "w"))
+    print("test cross entropy loss: {}; mean: {}".format(test_cross_entropy_loss, test_cross_entropy_loss / len(test_labels)))
+    if args.phase == "train":
+        print("Saving model to {}.".format(args.save_file))
+        cPickle.dump(classifier, open(args.save_file, "w"))
     
 def parse_annotations(annotations):
     total_legal_rel = np.sum([len(anns) for anns in annotations.itervalues()])
@@ -53,7 +68,7 @@ def parse_annotations(annotations):
             labels[index] = ann["predicate"]
             index += 1
     assert index == total_legal_rel
-    return features, labels
+    return features, labels.astype(int)
 
 if __name__ == "__main__":
     main()

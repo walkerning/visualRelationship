@@ -316,3 +316,21 @@ recall_time@100: 0.467806542541
 top1 accuracy: 0.0979354155638
 Writing recall information into v_mean_recalls_1496542759.pkl.
 ```
+
+GBC: 结果比visual 好看多了...就算visual那里loss到80吧...平均的ce loss也是2.5, 比这里大...
+```
+Parsing the annotation files...
+train accuracy: 0.576544226651
+train cross entropy loss: 44126.1326805; mean: 1.45366933555
+test accuracy: 0.486383870123
+test cross entropy loss: 14866.4305369; mean: 1.9463773942
+
+foxfi@foxfi-eva5:~/visualRelationship$ python evaluate_gbc.py --verbose --cal_recall --cal_vscore --save gbc_v_score.txt --checkpoint_file gbc.pkl  | tee logs/gbc_train_recall_log.txt
+number actual valid examples: 3778
+mean recall@50: 0.682864639337
+mean recall@100: 0.802319964521
+recall_time@50: 0.648431125287
+recall_time@100: 0.805207328833
+top1 accuracy: 0.233986236104
+Writing recall information into gbc_mean_recalls_1496586277.pkl.
+```
