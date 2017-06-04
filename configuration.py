@@ -38,6 +38,8 @@ class ModelConfig(object):
 
         self.summary_endpoints = ["fc6", "fc7"]
 
+        self.use_rank_loss = False
+
 # FIXME: 为了好看还是应该把TrainConfig和LanguageModelConfig分开
 class LanguageModelConfig(object):
     def __init__(self):

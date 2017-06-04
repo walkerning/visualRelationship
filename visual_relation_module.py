@@ -79,7 +79,9 @@ class VisualModule(object):
                 for pred in range(self.config.num_predicates):
                     tf.summary.histogram("logits_{}".format(pred), logits[:, pred])
             for end_name in self.config.summary_endpoints:
-                tf.summary.histogram("{}/activations".format(end_name), endpoints[self.config.vgg_type + "/" + end_name])
+                tensor_name = self.config.vgg_type + "/" + end_name
+                if tensor_name in endpoints:
+                    tf.summary.histogram("{}/activations".format(end_name), endpoints[tensor_name])
             # summary weights/biases of fc layers:
             fc_variables = [v for v in self.vgg_variables if "fc" in v.op.name]
             for v in fc_variables:
@@ -91,7 +93,20 @@ class VisualModule(object):
             batch_top5_accuracy = tf.reduce_mean(tf.cast(batch_top5_correct, tf.float32))
             tf.summary.scalar("losses/batch_accuracy", batch_accuracy)
             tf.summary.scalar("losses/batch_top5_accuracy", batch_top5_accuracy)
-            losses = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.labels, logits=logits) 
+            if self.config.use_rank_loss:
+                # construct n-dim indexes. [(row_ind, col_ind)...]
+                nd_inds = tf.concat((tf.expand_dims(tf.constant(range(self.config.batch_size), dtype=tf.int64), -1),
+                                     tf.expand_dims(self.labels, -1)), axis=1)
+                label_logits = tf.gather_nd(logits, nd_inds)
+                tf.summary.histogram("losses/label_logits", label_logits)
+                maxneg_logits = tf.reduce_max(tf.where(tf.equal(logits, tf.expand_dims(label_logits, -1)),
+                                                       logits,
+                                                       tf.zeros((self.config.batch_size, self.config.num_predicates),
+                                                                dtype=tf.float32)),
+                                              axis=1)
+                losses = tf.maximum(maxneg_logits - label_logits + 1, 0)
+            else:
+                losses = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.labels, logits=logits) 
             batch_loss = tf.reduce_sum(losses)
             tf.losses.add_loss(batch_loss)
             tf.summary.scalar("losses/batch_loss", batch_loss)
