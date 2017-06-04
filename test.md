@@ -303,3 +303,16 @@ Guess test recall_time@50:0.19573694902
 guess test recall_time@100: 0.313647699044
 
 total test predicates:  7638
+
+
+trainlog_visual_module6/model.ckpt-654 把learning rate改小了... 确实有0, 1, 9三种predicates了...不过还是由于各类数量差太多...top1也只有这三类.. 然后虽然recall@50/100增高了...但是top one accuracy降低很多诶...
+
+```
+foxfi@foxfi-eva5:~/visualRelationship$ python evaluate_visual_module.py --annotation_file annotations_train.json --checkpoint_file trainlog_visual_module6/model.ckpt-654 --cal_recall --cal_vscore --verbose --save v_scores_6.txt | tee train_recall_log_6.txt
+number actual valid examples: 3778
+mean recall@50: 0.402183932239
+mean recall@100: 0.535688309905
+recall_time@100: 0.467806542541
+top1 accuracy: 0.0979354155638
+Writing recall information into v_mean_recalls_1496542759.pkl.
+```

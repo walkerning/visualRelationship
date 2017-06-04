@@ -167,7 +167,7 @@ def main(_):
         print("mean recall@50: {}\nmean recall@100: {}".format(mean_recall50, mean_recall100))
         matches_recall50 = np.sum(matches_50_dct.values()) / num_total_rel
         matches_recall100 = np.sum(matches_100_dct.values()) / num_total_rel
-        print("recall_time@50: {}\recall_time@100: {}".format(matches_recall50, matches_recall100))
+        print("recall_time@50: {}\nrecall_time@100: {}".format(matches_recall50, matches_recall100))
         print("top1 accuracy: {}".format(top1_correct))
         recall_fname = "v_mean_recalls_{}.pkl".format(int(time.time()))
         print("Writing recall information into {}.".format(recall_fname))
