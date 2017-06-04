@@ -65,10 +65,10 @@ class VisualModule(object):
         model_fn = getattr(vgg, self.config.vgg_type)
         
         logits, endpoints = model_fn(self.image,
-                             is_training=(self.mode == "train"),
-                             num_classes=self.config.num_predicates,
-                             scope=self.config.vgg_type)
-        self.vgg_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.config.vgg_type)
+                                     is_training=(self.mode == "train"),
+                                     num_classes=self.config.num_predicates,
+                                     scope=self.config.vgg_scope)
+        self.vgg_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.config.vgg_scope)
 
         if self.mode == "inference":
             #self.prediction = tf.nn.softmax(logits, name="softmax")
@@ -79,7 +79,7 @@ class VisualModule(object):
                 for pred in range(self.config.num_predicates):
                     tf.summary.histogram("logits_{}".format(pred), logits[:, pred])
             for end_name in self.config.summary_endpoints:
-                tensor_name = self.config.vgg_type + "/" + end_name
+                tensor_name = self.config.vgg_scope + "/" + end_name
                 if tensor_name in endpoints:
                     tf.summary.histogram("{}/activations".format(end_name), endpoints[tensor_name])
             # summary weights/biases of fc layers:

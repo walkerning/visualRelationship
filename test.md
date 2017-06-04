@@ -334,3 +334,15 @@ recall_time@100: 0.805207328833
 top1 accuracy: 0.233986236104
 Writing recall information into gbc_mean_recalls_1496586277.pkl.
 ```
+
+
+重新处理正确数据后:
+```
+number actual valid examples: 3778
+mean recall@50: 0.510473188651
+mean recall@100: 0.638581521415
+recall_time@50: 0.45297084786
+recall_time@100: 0.601253616201
+top1 accuracy: 0.1995764955
+Writing recall information into v_mean_recalls_1496597974.pkl.
+```

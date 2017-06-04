@@ -16,7 +16,9 @@ class ModelConfig(object):
 
         self.file_pattern = ""
 
-        self.vgg_type = "vgg_16"
+        self.vgg_type = "vgg_16_my"
+        
+        self.vgg_scope = "vgg_16"
 
         # input height width for VGG net
         self.image_height = 224
