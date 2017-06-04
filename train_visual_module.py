@@ -43,7 +43,8 @@ def main(_):
     model.build()
     #learning_rate = 0.001
     learning_rate = tf.train.exponential_decay(
-        0.00001,
+        #0.00001,
+        0.0001,
         model.global_step,
         decay_steps=1000,
         decay_rate=0.1,

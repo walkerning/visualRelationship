@@ -46,7 +46,7 @@ class LanguageModule(object):
                 num_outputs=num_outputs,
                 activation_fn=None,
                 weights_initializer=weights_initializer,
-            biases_initializer=None)
+                biases_initializer=None)
             return f_scores
         self.get_f_scores = tf.make_template("get_f_scores", _f_scores, num_outputs=self.config.num_predicates,
                                               weights_initializer=self.initializer)

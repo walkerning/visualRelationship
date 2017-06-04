@@ -76,7 +76,7 @@ def _roll_image(sess, img, size, pred, model, stride=15):
                 jj = img_size[0] - size
             black_image = _remove_square(img, size, ii, jj, number)
             logits = _get_logits(sess, black_image, model)
-            losses[ii:ii+size, jj:jj+size] = losses[ii:ii+size, jj:jj+size] + _entropy(logits, pred) - loss_init
+            losses[ii:ii+size, jj:jj+size] = losses[ii:ii+size, jj:jj+size] + max(_entropy(logits, pred) - loss_init, 0)
 
     return losses, number
 
@@ -99,7 +99,7 @@ def main():
     model.build()
     saver = tf.train.Saver()
 
-    images_name = ["1807338675_5e13fe07f9_o_0_5_20.jpg"]#"9399147028_3927b000f1_b_1_33_0.jpg"]
+    images_name = ["9399147028_3927b000f1_b_1_33_0.jpg"]#"1807338675_5e13fe07f9_o_0_5_20.jpg"]
     prediction = [0]
 
     with tf.Session() as sess:

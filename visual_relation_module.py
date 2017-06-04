@@ -35,6 +35,23 @@ class VisualModule(object):
                                        method=tf.image.ResizeMethod.BILINEAR)
         return image
 
+
+    def setup_embeddings(self):
+        predicate_embedding_init = np.fromfile(self.config.predicate_embedding_file, dtype=np.float32).reshape([self.config.num_predicates, self.config.dim_embedding])
+        if self.config.use_pca_embeddings:
+            from sklearn import decomposition
+            pca = decomposition.PCA(n_components=self.config.dim_pca_embeddings)
+            pca.fit(predicate_embedding_init)
+            predicate_embedding_init = pca.transform(predicate_embedding_init)
+
+        self.predicate_embeddings = tf.get_variable(
+            name="predicate_embedding",
+            shape=[self.config.num_predicates, predicate_embedding_init.shape[1]],
+            trainable=False,
+            initializer=tf.constant_initializer(predicate_embedding_init),
+            dtype=tf.float32
+        )
+
     def build_inputs(self):
         if self.mode == "train":
             data_files = []
@@ -64,10 +81,72 @@ class VisualModule(object):
     def build_model(self):
         model_fn = getattr(vgg, self.config.vgg_type)
         
-        logits, endpoints = model_fn(self.image,
-                                     is_training=(self.mode == "train"),
-                                     num_classes=self.config.num_predicates,
-                                     scope=self.config.vgg_scope)
+        if not self.config.use_predicate_attention:
+            logits, endpoints = model_fn(self.image,
+                                         is_training=(self.mode == "train"),
+                                         num_classes=self.config.num_predicates,
+                                         scope=self.config.vgg_scope)
+        else:
+            _, endpoints = model_fn(self.image,
+                                    is_training=(self.mode == "train"),
+                                    num_classes=self.config.num_predicates,
+                                    scope=self.config.vgg_scope)
+            #tf.contrib.layers.conv2d(endpoints["vgg_16/pool5"], num_output=))
+            attend_layer_name = self.config.vgg_scope + "/pool5"
+            attend_endpoint = endpoints[attend_layer_name]
+            num_locations = (attend_endpoint.shape[1] * attend_endpoint.shape[2]).value
+            with tf.variable_scope("embedding_to_attention"):
+                # embedding_to_attention_weight = tf.get_variable(
+                #     name="weight",
+                #     shape=[self.dim_embedding, num_locations],
+                #     initializer=self.initializer,
+                #     dtype=tf.float32
+                # )
+                # # here is the bias per-location, now there is not a bias term per predicate...
+                # embedding_to_attention_bias = tf.get_variable(
+                #     name="bias",
+                #     shape=[num_locations],
+                #     initializer=tf.constant_initializer(0),
+                #     dtype=tf.float32
+                # )
+                # `attention` shape is [self.config.num_predicates, L=49]
+
+                #attention = tf.nn.relu(tf.matmul(self.predicate_embeddings, embedding_to_attention_weight) + embedding_to_attention_bias)
+                # whether to use relu or softmax???
+                attention = tf.contrib.layers.fully_connected(
+                    inputs=self.predicate_embeddings,
+                    num_outputs=num_locations,
+                    weights_initializer=self.initializer,
+                    biases_initializer=tf.constant_initializer(0),
+                    weights_regularizer=tf.contrib.layers.l1_regularizer(self.config.l1_reg_scale))
+
+                for v in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, tf.get_variable_scope().name):
+                    tf.summary.histogram(v.op.name, v)
+
+                for pred in range(self.config.num_predicates):
+                    tf.summary.histogram("attention/{}".format(pred), attention[pred, :])
+                # normalized attention. ReLU is better in my experiements...
+                #n_attention = tf.nn.softmax(attention)
+                n_attention = attention
+                for pred in range(self.config.num_predicates):
+                    tf.summary.histogram("normalized_attention/{}".format(pred), n_attention[pred, :])
+
+            # `attended_features` will be of shape [self.config.batch_size, 1, self.config.num_predicates, 512]
+            attended_features = tf.expand_dims(tf.reduce_sum(tf.expand_dims(tf.reshape(attend_endpoint, [self.config.batch_size, num_locations, -1]), 1) * tf.expand_dims(n_attention, -1), axis=2), 1)
+            with tf.variable_scope(self.config.vgg_scope):
+                net = tf.contrib.layers.conv2d(
+                    attended_features,
+                    4096, [1,1],
+                    scope="attend_fc6")
+                net = tf.contrib.layers.dropout(
+                    net, 0.5, is_training=(self.mode == "train"),
+                    scope="dropout6")
+                logits = tf.squeeze(tf.contrib.layers.conv2d(
+                    net, 1, [1, 1],
+                    activation_fn=None,
+                    normalizer_fn=None,
+                    scope="attend_fc8"))
+
         self.vgg_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.config.vgg_scope)
 
         if self.mode == "inference":
@@ -138,6 +217,8 @@ class VisualModule(object):
     def build(self):
         if self.mode == "train":
             self.setup_global_step()
+        if self.config.use_predicate_attention:
+            self.setup_embeddings()
         self.build_inputs()
         self.build_model()
         self.setup_vgg_initializer()

@@ -336,7 +336,7 @@ Writing recall information into gbc_mean_recalls_1496586277.pkl.
 ```
 
 
-重新处理正确数据后:
+visual10 重新处理正确数据后:
 ```
 number actual valid examples: 3778
 mean recall@50: 0.510473188651
@@ -345,4 +345,29 @@ recall_time@50: 0.45297084786
 recall_time@100: 0.601253616201
 top1 accuracy: 0.1995764955
 Writing recall information into v_mean_recalls_1496597974.pkl.
+```
+
+
+language model-on-visual10 + visual10
+```
+train:
+
+number actual valid examples: 3778; number valid annotated relation: 26962
+mean recall@50: 0.536695817108
+mean recall@100: 0.660329335658
+recall_time@50: 0.4831243973
+recall_time@100: 0.627104814183
+top1 accuracy: 0.447061937533
+
+test:
+
+mean recall@50: 0.491938277243
+mean recall@100: 0.609775169043
+mean recall@25: 0.383108162318
+
+recall_time@50: 0.434264705882
+recall_time@100: 0.564411764706
+recall_time@25: 0.331764705882
+
+top1 accuracy: 0.401467505241
 ```
