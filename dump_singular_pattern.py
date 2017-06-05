@@ -12,7 +12,8 @@ from matplotlib import pyplot as plt
 from matplotlib.pyplot import imshow
 
 from visual_relation_module import VisualModule
-from configuration import ModelConfig
+from language_module import LanguageModule
+from configuration import ModelConfig, LanguageModelConfig
 
 def read_file(filename):
 	if not os.path.isfile(filename):
@@ -40,11 +41,13 @@ def _get_box(bbox1, bbox2):
 FLAGS = tf.app.flags.FLAGS
 
 tf.flags.DEFINE_string("checkpoint_file", "","Path to a pretrained visual model.")
+tf.flags.DEFINE_string("language_checkpoint_file", "", "Path to a pretrained language model")
+
 tf.flags.DEFINE_string("data_dir","/home/mxy/json_data/","the json_data dir")
 tf.flags.DEFINE_string("train_fname","annotations_train.json","train json")
 tf.flags.DEFINE_string("test_fname", "annotations_test.json", "test json")
 tf.flags.DEFINE_string("object_fname", "objects.json", "object list")
-tf.flags.DEFINE_string("dataset_dir","/home/mxy/json_data/sg_dataset/sg_train_images", "sp_data dir")
+tf.flags.DEFINE_string("dataset_dir","/home/mxy/json_data/sg_dataset/sg_test_images", "sp_data dir")
 tf.flags.DEFINE_string("output_fname","/home/mxy/json_data/unique.txt","list of unique triples")
 
 def _get_logits(sess, data, model):
@@ -52,16 +55,41 @@ def _get_logits(sess, data, model):
             sess.run(model.prediction, 
             feed_dict = {
                 model.image_feed: data.tobytes()}))
+def _softmax(x):
+    e_x = np.exp(x)
+    return e_x / e_x.sum()
 
+def _entropy(x):
+    return -np.log(_softmax(x))
+
+
+def _get_language_logits(sess, obj1, obj2, model):
+    return np.squeeze(sess.run(model.prediction, 
+        feed_dict = { 
+            model.obj1_feed:[obj1], 
+            model.obj2_feed:[obj2]}))
+
+                        
 def main():
     train = read_file(os.path.join(FLAGS.data_dir, FLAGS.train_fname))
     test = read_file(os.path.join(FLAGS.data_dir, FLAGS.test_fname))
     objects = read_file(os.path.join(FLAGS.data_dir, FLAGS.object_fname))
     model_config = ModelConfig()
-    model = VisualModule(model_config, mode="inference")
-    model.build()
-    saver = tf.train.Saver()
+    l_model_config = LanguageModelConfig()
+    with tf.variable_scope("visual"):
+        model = VisualModule(model_config, mode="inference")
+        model.build()
+    with tf.variable_scope("language"):
+        l_model = LanguageModule(l_model_config, mode = "inference")
+        l_model.build()
+
+
+
+    saver = tf.train.Saver({v.op.name[v.op.name.find("/",1) + 1:] : v for v in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = "visual")})
+    l_saver = tf.train.Saver({v.op.name[v.op.name.find("/",1) + 1:] : v for v in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = "language")})
+    
     unique = {}
+    test_set = {}
     triples = {}
     pred_rel_lst = {}
     output = open(FLAGS.output_fname, 'wb')
@@ -70,33 +98,53 @@ def main():
     	    triples[(train[ii][jj]['predicate'], train[ii][jj]['object']['category'], train[ii][jj]['subject']['category'])] = [ii, jj]
     with tf.Session() as sess:
     	sess.run(tf.global_variables_initializer())
+        
         saver.restore(sess, FLAGS.checkpoint_file)
+        l_saver.restore(sess, FLAGS.language_checkpoint_file)
+
 	for ii in test:
 	    pred_rel_lst[ii] = []
 	    for jj in range(len(test[ii])):
 	    	key = (test[ii][jj]['predicate'], test[ii][jj]['object']['category'], test[ii][jj]['subject']['category'])
-	    	if key not in triples:
+	    	test_set[key] = [ii, jj]
+                if key not in triples:
 	    	    unique[key] = [ii, jj]
 	    	    output.write("{} {} : {} {} {}\n".format(ii, jj, key[0], key[1], key[2]))
 	    	pred_rel_lst[ii].append(key[0])
 	top_1_acc = 0
 	top_5_acc = 0
+        top_25_acc = 0
 	for key in unique:
 	    ii, jj = unique[key]
 	    pred = key[0]
 	    b1 = test[ii][jj]['object']['bbox']
 	    b2 = test[ii][jj]['subject']['bbox']
 	    u = _get_box(b1, b2)
-	    img = Image.open(os.path.join(FLAGS.dataset_dir, ii))
+            filename = os.path.join(FLAGS.dataset_dir, ii)
+            if not os.path.isfile(filename):
+                print("file {} does not exist".format(filename))
+                continue
+	    img = Image.open(filename)
 	    union = np.array(img.crop(u))
 	    union = np.resize(union, [224, 224, 3])
-	    pred_lst = _get_logits(sess, union, model)
-	    sort_inds = np.FLAGSort(pred_lst)[::-1]
-	    if pred == pred_lst[sort_inds[0]]:
-		top_1_acc += 1
-	    if pred in pred_lst[sort_inds[0:5]]:
+	    v_pred = _get_logits(sess, union, model)
+            l_pred = _get_language_logits(sess, test[ii][jj]['object']['category'], test[ii][jj]['subject']['category'], l_model)
+            pred_lst = v_pred * l_pred
+
+            #pred_lst = _entropy(pred_lst)
+            sort_inds = np.argsort(pred_lst)[::-1]
+            #output.write("{}\n".format(sort_inds[0:5]))
+            if pred == sort_inds[0]:
+	        #output.write("\n\t{} {}: {} {} {}".format(ii, jj, pred, key[1], key[2]))
+                top_1_acc += 1
+	    if pred in sort_inds[0:5]:
 		top_5_acc += 1
-	print("\n\ttop 1 acc: {} \n\ttop 5 acc: {}\n".format(top_1_acc / float(len(unique)), top_5_acc / float(len(unique))))
+                print("top 5 acc CORRECT : {} {} {}\n".format(ii,jj, pred))
+            if pred in sort_inds[0:25]:
+                top_25_acc += 1
+                print("top 25 acc CORRECT: {} {} {}\n".format(ii,jj, pred))
+            
+        print("\n\ttop 1 acc: {} \n\ttop 5 acc: {}\n\ttop 25 acc: {}\n".format(top_1_acc / float(len(unique)), top_5_acc / float(len(unique)), top_25_acc / float(len(unique))))
 
 
     output.close()
