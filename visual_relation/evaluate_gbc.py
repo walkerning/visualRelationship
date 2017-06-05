@@ -62,8 +62,10 @@ def main(_):
 
     recalls_50_dct = {}
     recalls_100_dct = {}
+    recalls_num_dct = {}
     matches_50_dct = {}
     matches_100_dct = {}
+    matches_num_dct = {}
 
     # FIXME: 是不是其实可以cross-image, 直接把所有positive拼在一起, 所有negative拼在一起就行了
     if FLAGS.cal_vscore:
@@ -98,7 +100,7 @@ def main(_):
                 """
                 # proba or log proba here?
                 return post_process_vscore(np.squeeze(classifier.predict_proba(np.array([[obj1.category, obj2.category] + list(obj1.bbox) + list(obj2.bbox)]))))
-            recalls_50_dct[img_fname], recalls_100_dct[img_fname], matches_50_dct[img_fname], matches_100_dct[img_fname], top_1_predictions = calculate_recall(rel_pred_set, objects, get_pred)
+            recalls_50_dct[img_fname], recalls_100_dct[img_fname], recalls_num_dct[img_fname], matches_50_dct[img_fname], matches_100_dct[img_fname], matches_num_dct[img_fname], top_1_predictions = calculate_recall(rel_pred_set, objects, get_pred)
             cor = top_1_predictions[0][0] in rel_pred_set
             top1_correct += cor
             if FLAGS.verbose:

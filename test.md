@@ -333,6 +333,14 @@ recall_time@50: 0.648431125287
 recall_time@100: 0.805207328833
 top1 accuracy: 0.233986236104
 Writing recall information into gbc_mean_recalls_1496586277.pkl.
+
+# 在test上:
+number actual valid examples: 954
+mean recall@50: 0.586080366624
+mean recall@100: 0.711978850321
+recall_time@50: 0.545588235294
+recall_time@100: 0.695
+top1 accuracy: 0.176100628931
 ```
 
 
@@ -371,3 +379,19 @@ recall_time@25: 0.331764705882
 
 top1 accuracy: 0.401467505241
 ```
+
+
+gbc + language module
+```
+mean recall@50: 0.445765844295
+mean recall@100: 0.549348315782
+mean recall@25: 0.350501824361
+
+recall_time@50: 0.415147058824
+recall_time@100: 0.517205882353
+recall_time@25: 0.319264705882
+
+top1 accuracy: 0.334381551363
+TEST_GBC
+```
+感觉针对gbc langauge module的参数还需要再调整...

@@ -48,7 +48,7 @@ def custom_pool_vgg_factory(conv_size=3, l1_reg_scale=0., vgg_name="vgg_16", end
 
 def get_model_fn(type_name):
     if type_name.startswith("vgg"):
-        return getattr(vgg, type_nam)
+        return getattr(vgg, type_name)
     else:
         tpname, argname = type_name.split(":", 1)
         tpregistry = custom_factory_dct[tpname]
