@@ -124,7 +124,7 @@ def main(_):
     print("top1 accuracy: {}".format(top1_correct))
     recall_fname = "vl_mean_recalls_{}.pkl".format(int(time.time()))
     print("Writing recall information into {}.".format(recall_fname))
-    cPickle.dump((recalls_50_dct, recalls_100_dct, recalls_num_dct), open(recall_fname, "r"))
+    cPickle.dump((recalls_50_dct, recalls_100_dct, recalls_num_dct), open(recall_fname, "w"))
 
 if __name__ == "__main__":
     tf.app.run()

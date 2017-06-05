@@ -9,6 +9,7 @@ class ModelConfig(object):
     def __init__(self):
         ## model configs
         self.num_predicates = 70
+        self.dim_embedding = 300
         
         self.image_feature_name = "bbox"
         
@@ -16,7 +17,9 @@ class ModelConfig(object):
 
         self.file_pattern = ""
 
-        self.vgg_type = "vgg_16"
+        self.vgg_type = "vgg_16_my"
+        
+        self.vgg_scope = "vgg_16"
 
         # input height width for VGG net
         self.image_height = 224
@@ -39,6 +42,15 @@ class ModelConfig(object):
         self.summary_endpoints = ["fc6", "fc7"]
 
         self.use_rank_loss = False
+
+        self.predicate_embedding_file = "./model/predicate_embeddings.npz"
+        self.use_predicate_attention = True
+
+        self.l1_reg_scale = 0.
+
+        # preprocessing
+        self.use_pca_embeddings = False
+        self.dim_pca_embeddings = 50
 
 # FIXME: 为了好看还是应该把TrainConfig和LanguageModelConfig分开
 class LanguageModelConfig(object):
