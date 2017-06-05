@@ -9,7 +9,7 @@ import argparse
 
 import PIL
 from PIL import Image
-from evaluate_utils import get_union_box
+from visual_relation.evaluate_utils import get_union_box
 
 def main():
     parser = argparse.ArgumentParser()

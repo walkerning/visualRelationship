@@ -43,16 +43,22 @@ class ModelConfig(object):
 
         self.use_rank_loss = False
 
+        self.use_predicate_attention = False # worse than not using attention
+        self.use_predicate_embedding = True # better than not using predicate embedding
         self.predicate_embedding_file = "./model/predicate_embeddings.npz"
-        self.use_predicate_attention = True
+        
+        self.use_semantic_attention = False # indifferent of not using semantic attention
 
         self.l1_reg_scale = 0.
 
         # preprocessing
-        self.use_pca_embeddings = False
+        self.use_pca_embeddings = False # if use_pca_embeddings, more stable, but the performance is of no better
         self.dim_pca_embeddings = 50
 
-# FIXME: 为了好看还是应该把TrainConfig和LanguageModelConfig分开
+        # self.attention_activation_fn = "relu" # sigmoid / relu / softmax
+        self.spatial_attention_activation_fn = "relu" # other not work...
+        self.semantic_attention_activation_fn = "sigmoid" # for now `None` not work
+
 class LanguageModelConfig(object):
     def __init__(self):
         self.num_predicates = 70

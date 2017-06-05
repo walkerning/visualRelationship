@@ -10,7 +10,7 @@ import json
 
 import pandas as pd
 from matplotlib import pyplot as plt
-from evaluate_utils import parse_annotation
+from visual_relation.evaluate_utils import parse_annotation
 
 # random guess recall@100 100/(100*100*7): 0.0001428571429
 # frequency guess recall@100. avergage 18 objects....

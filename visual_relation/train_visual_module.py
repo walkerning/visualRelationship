@@ -47,6 +47,7 @@ def main(_):
         0.0001,
         model.global_step,
         decay_steps=1000,
+        #decay_steps=2000,
         decay_rate=0.1,
         staircase=True)
     tf.summary.scalar("learning_rate", learning_rate)
