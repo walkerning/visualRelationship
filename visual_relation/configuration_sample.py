@@ -17,7 +17,8 @@ class ModelConfig(object):
 
         self.file_pattern = ""
 
-        self.vgg_type = "vgg_16_my"
+        # self.vgg_type = "vgg_16"
+        self.vgg_type = "custom_pool_vgg:"
         
         self.vgg_scope = "vgg_16"
 

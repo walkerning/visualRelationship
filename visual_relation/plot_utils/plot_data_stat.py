@@ -106,7 +106,13 @@ if __name__ == "__main__":
     print("\n".join(["{:20s} {:<8d} {:.6f}".format(name, oc, ratio) for name, oc, ratio in zip(objs, obj_num_lst, obj_num_lst/np.sum(obj_num_lst))]))
     test_obj_num_lst, test_ann_num_lst, test_has_ann_num_lst = plot_stat(anns_test, objs, preds, "test")
     test_total_ann_num = np.sum(test_ann_num_lst)
+    print("\ntest predicates\n-------")
     print("total test predicates: ", test_total_ann_num, "\n")
+    print("\n".join(["{:20s} {:<8d} {:.6f}".format(name, oc, ratio) for name, oc, ratio in zip(preds, test_ann_num_lst, test_ann_num_lst/np.sum(test_ann_num_lst))]))
+    print("#pic that have predciates\n-----------")
+    print("\n".join(["{:20s} {:<8d}".format(name, oc) for name, oc in zip(preds, test_has_ann_num_lst)]))
+    print("objects\n-------")
+    print("\n".join(["{:20s} {:<8d} {:.6f}".format(name, oc, ratio) for name, oc, ratio in zip(objs, test_obj_num_lst, test_obj_num_lst/np.sum(test_obj_num_lst))]))
 
     # calculate if we're just guess according to the occuring frequency, what recall will we get
     recall50_dct, recall100_dct, time50_dct, time100_dct = cal_guess_recall(anns_train, np.arange(70)[np.argsort(ann_num_lst)[::-1]])

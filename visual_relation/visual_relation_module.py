@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Visual module.
+nVisual module.
 """
 
 from __future__ import absolute_import
@@ -9,7 +9,7 @@ from __future__ import print_function
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.contrib.slim.python.slim.nets import vgg
+from vgg_impl import get_model_fn
 
 class VisualModule(object):
     def __init__(self, config, mode):
@@ -80,7 +80,7 @@ class VisualModule(object):
             self.image = tf.expand_dims(self.process_image(self.image_feed), 0)
 
     def build_model(self):
-        model_fn = getattr(vgg, self.config.vgg_type)
+        model_fn = get_model_fn(self.config.vgg_type)
         
         if not self.config.use_predicate_attention:
             logits, endpoints = model_fn(self.image,
