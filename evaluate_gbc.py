@@ -59,9 +59,10 @@ def main(_):
     num_examples = len(annotations)
     num_actual_examples = 0
     print("Readed {} examples from {}".format(num_examples, FLAGS.annotation_file))
-
+    recalls_25_dct = {}
     recalls_50_dct = {}
     recalls_100_dct = {}
+    matches_25_dct = {}
     matches_50_dct = {}
     matches_100_dct = {}
 
@@ -98,11 +99,11 @@ def main(_):
                 """
                 # proba or log proba here?
                 return post_process_vscore(np.squeeze(classifier.predict_proba(np.array([[obj1.category, obj2.category] + list(obj1.bbox) + list(obj2.bbox)]))))
-            recalls_50_dct[img_fname], recalls_100_dct[img_fname], matches_50_dct[img_fname], matches_100_dct[img_fname], top_1_predictions = calculate_recall(rel_pred_set, objects, get_pred)
+            recalls_50_dct[img_fname], recalls_100_dct[img_fname], recalls_25_dct[img_fname], matches_50_dct[img_fname], matches_100_dct[img_fname], matches_25_dct[img_fname], top_1_predictions = calculate_recall(rel_pred_set, objects, get_pred)
             cor = top_1_predictions[0][0] in rel_pred_set
             top1_correct += cor
             if FLAGS.verbose:
-                print("\trecall@50: {}\n\trecall@100: {}".format(recalls_50_dct[img_fname], recalls_100_dct[img_fname]))
+                print("\trecall@25: {}\n\trecall@50: {}\n\trecall@100: {}".format(recalls_25_dct[img_fname], recalls_50_dct[img_fname], recalls_100_dct[img_fname]))
                 obj, sub = objects[top_1_predictions[0][0][1]].category, objects[top_1_predictions[0][0][2]].category
                 print("\t{}: the top-1 prediction is ({} {} {}), score {}".format("CORRECT" if cor else "FALSE", top_1_predictions[0][0][0],
                                                                                   obj, sub, top_1_predictions[0][1]))
@@ -145,14 +146,16 @@ def main(_):
             ind_fname_wf.write("{} {}\n".format(ind, img_fname))
 
     if FLAGS.cal_recall:
+        mean_recall25 = np.mean(recalls_25_dct.values())
         mean_recall50 = np.mean(recalls_50_dct.values())
         mean_recall100 = np.mean(recalls_100_dct.values())
         print("number actual valid examples: {}".format(num_actual_examples))
         top1_correct = float(top1_correct) / num_actual_examples
-        print("mean recall@50: {}\nmean recall@100: {}".format(mean_recall50, mean_recall100))
+        print("mean recall@25: {}\nmean recall@50: {}\nmean recall@100: {}".format(mean_recall25, mean_recall50, mean_recall100))
+        matches_recall25 = np.sum(matches_25_dct.values()) / num_total_rel
         matches_recall50 = np.sum(matches_50_dct.values()) / num_total_rel
         matches_recall100 = np.sum(matches_100_dct.values()) / num_total_rel
-        print("recall_time@50: {}\nrecall_time@100: {}".format(matches_recall50, matches_recall100))
+        print("recall_time@25: {}\nrecall_time@50: {}\nrecall_time@100: {}".format(matches_recall25, matches_recall50, matches_recall100))
         print("top1 accuracy: {}".format(top1_correct))
         recall_fname = "gbc_mean_recalls_{}.pkl".format(int(time.time()))
         print("Writing recall information into {}.".format(recall_fname))

@@ -40,7 +40,7 @@ tf.flags.DEFINE_boolean("verbose", True,
                         "Print verbose information.")
 
 def main(_):
-    assert FLAGS.visual_checkpoint_file, "--visual_checkpoint_file is required"
+    #assert FLAGS.visual_checkpoint_file, "--visual_checkpoint_file is required"
     assert FLAGS.language_checkpoint_file, "--language_checkpoint_file is required"
     post_process_vscore = get_post_process_func(FLAGS.post_process)
 

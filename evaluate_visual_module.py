@@ -67,10 +67,12 @@ def main(_):
     model.build()
     saver = tf.train.Saver()
     #samples_dct = {}
+    recalls_25_dct = {}
     recalls_50_dct = {}
     recalls_100_dct = {}
     matches_50_dct = {}
     matches_100_dct = {}
+    matches_25_dct = {}
 
     # FIXME: 是不是其实可以cross-image, 直接把所有positive拼在一起, 所有negative拼在一起就行了
     if FLAGS.cal_vscore:
@@ -109,11 +111,11 @@ def main(_):
                     data = np.array(img.crop(get_union_box(obj1.bbox, obj2.bbox)).resize([224, 224], PIL.Image.BILINEAR))
                     predictions = np.squeeze(sess.run(model.prediction, feed_dict={model.image_feed: data.tostring()}))
                     return post_process_vscore(predictions)
-                recalls_50_dct[img_fname], recalls_100_dct[img_fname], matches_50_dct[img_fname], matches_100_dct[img_fname], top_1_predictions = calculate_recall(rel_pred_set, objects, get_pred)
+                recalls_50_dct[img_fname], recalls_100_dct[img_fname], recalls_25_dct[img_fname], matches_50_dct[img_fname], matches_100_dct[img_fname],matches_25_dct[img_fname], top_1_predictions = calculate_recall(rel_pred_set, objects, get_pred)
                 cor = top_1_predictions[0][0] in rel_pred_set
                 top1_correct += cor
                 if FLAGS.verbose:
-                    print("\trecall@50: {}\n\trecall@100: {}".format(recalls_50_dct[img_fname], recalls_100_dct[img_fname]))
+                    print("\trecall@50: {}\n\trecall@100: {}\n\trecall@25 : {}".format(recalls_50_dct[img_fname], recalls_100_dct[img_fname], recalls_25_dct[img_fname]))
                     obj, sub = objects[top_1_predictions[0][0][1]].category, objects[top_1_predictions[0][0][2]].category
                     print("\t{}: the top-1 prediction is ({} {} {}), score {}".format("CORRECT" if cor else "FALSE", top_1_predictions[0][0][0],
                                                                                       obj, sub, top_1_predictions[0][1]))
@@ -160,14 +162,17 @@ def main(_):
                 ind_fname_wf.write("{} {}\n".format(ind, img_fname))
 
     if FLAGS.cal_recall:
+        mean_recall25 = np.mean(recalls_25_dct.values())
         mean_recall50 = np.mean(recalls_50_dct.values())
         mean_recall100 = np.mean(recalls_100_dct.values())
         print("number actual valid examples: {}".format(num_actual_examples))
         top1_correct = float(top1_correct) / num_actual_examples
-        print("mean recall@50: {}\nmean recall@100: {}".format(mean_recall50, mean_recall100))
+        
+        print("mean recall@25: {}\nmean recall@50: {}\nmean recall@100: {}".format(mean_recall25, mean_recall50, mean_recall100))
+        matches_recall25 = np.sum(matches_25_dct.values()) / num_total_rel
         matches_recall50 = np.sum(matches_50_dct.values()) / num_total_rel
         matches_recall100 = np.sum(matches_100_dct.values()) / num_total_rel
-        print("recall_time@50: {}\nrecall_time@100: {}".format(matches_recall50, matches_recall100))
+        print("recall_times@25: {}\nrecall_time@50: {}\nrecall_time@100: {}".format(matches_recall25, matches_recall50, matches_recall100))
         print("top1 accuracy: {}".format(top1_correct))
         recall_fname = "v_mean_recalls_{}.pkl".format(int(time.time()))
         print("Writing recall information into {}.".format(recall_fname))
